@@ -1,71 +1,36 @@
-// Create web server
-var http = require('http');
-var url = require('url');
-var fs = require('fs');
-var qs = require('querystring');
-var mysql = require('mysql');
-var express = require('express');
-var app = express();
-var bodyParser = require('body-parser');
-var path = require('path');
-var router = express.Router();
+// Create web server 
 
-// Connect to mysql
-var client = mysql.createConnection({
-    user: 'root',
-    password: 'root',
-    database: 'o2'
-});
-client.connect();
+// Import modules
+const express = require('express');
+const bodyParser = require('body-parser');
+const mongoose = require('mongoose');
 
-// Create server
-app.use(express.static(path.join(__dirname, 'public')));
-app.use(bodyParser.urlencoded({extended: false}));
-app.use(bodyParser.json());
-app.locals.pretty = true;
-app.set('views', './views_mysql');
-app.set('view engine', 'pug');
+// Create app
+const app = express();
 
-// Create router
-router.route('/').get(function (req, res) {
-    res.render('index');
-});
+// Connect to database
+mongoose.connect('mongodb://localhost:27017/comments', {useNewUrlParser: true, useUnifiedTopology: true})
+    .then(() => {
+        console.log('Database connected');
+    })
+    .catch(err => {
+        console.log('Error connecting to database');
+        console.log(err);
+    })
 
-router.route('/topic/add').get(function (req, res) {
-    var sql = 'SELECT id,title FROM topic';
-    client.query(sql, function (err, topics, fields) {
-        if (err) {
-            console.log(err);
-            res.status(500).send('Internal Server Error');
-        }
-        res.render('add', {topics: topics});
-    });
-});
+// Set view engine
+app.set('view engine', 'ejs');
 
-router.route(['/topic', '/topic/:id']).get(function (req, res) {
-    var sql = 'SELECT id,title FROM topic';
-    client.query(sql, function (err, topics, fields) {
-        var id = req.params.id;
-        if (id) {
-            var sql = 'SELECT * FROM topic WHERE id=?';
-            client.query(sql, [id], function (err, topic, fields) {
-                if (err) {
-                    console.log(err);
-                    res.status(500).send('Internal Server Error');
-                } else {
-                    res.render('view', {topics: topics, topic: topic[0]});
-                }
-            });
-        } else {
-            res.render('view', {topics: topics});
-        }
-    });
-});
+// Set body parser
+app.use(bodyParser.urlencoded({extended: true}));
 
-router.route('/topic/:id/edit').get(function (req, res) {
-    var sql = 'SELECT id,title FROM topic';
-    client.query(sql, function (err, topics, fields) {
-        var id = req.params.id;
-        if (id) {
-            var sql = 'SELECT * FROM topic WHERE id=?';
-            client.query(sql, [id], function (err, topic, fields)
+// Set public folder
+app.use(express.static('public'));
+
+// Set routes
+app.use(require('./routes/comments'));
+
+// Start server
+app.listen(3000, () => {
+    console.log('Server started on port 3000');
+})
